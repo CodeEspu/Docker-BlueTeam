@@ -1,0 +1,30 @@
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.disabled
+
+filebeat.inputs:
+- type: filestream
+  id: suricata-input
+  enabled: true
+  paths:
+    - /var/log/suricata/eve.json
+  parsers:
+    - ndjson:
+        keys_under_root: true
+        overwrite_keys: true
+  fields:
+    data_source: "suricata"
+  fields_under_root: true
+  close.on_state_change.inactive: 2m
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  username: "admin"
+  password: "${ELASTIC_PASSWORD:-changeme}"
+  indices:
+    - index: "suricata-%{+yyyy.MM.dd}"
+  pipeline: "suricata"
+
+setup.ilm.enabled: false
+setup.template.enabled: true
+setup.template.name: "suricata"
+setup.template.pattern: "suricata-*"

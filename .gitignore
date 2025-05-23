@@ -1,0 +1,4 @@
+suricata/logs/
+/logs/
+*.log
+*.json

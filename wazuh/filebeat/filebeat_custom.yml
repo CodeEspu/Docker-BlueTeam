@@ -1,0 +1,16 @@
+filebeat.inputs:
+- type: filestream
+  id: suricata-input
+  enabled: true
+  paths:
+    - /var/log/suricata/eve.json
+  parsers:
+    - ndjson:
+        keys_under_root: true
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  username: "admin"
+  password: "${ELASTIC_PASSWORD:-changeme}"
+  indices:
+    - index: "suricata-%{+yyyy.MM.dd}"

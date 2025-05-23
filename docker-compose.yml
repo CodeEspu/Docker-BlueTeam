@@ -1,0 +1,116 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.3
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./elasticsearch/data:/usr/share/elasticsearch/data
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ./wazuh/data:/var/ossec/data
+      - ./suricata/logs:/var/log/suricata:ro  # Compartir logs de Suricata
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - blue_team_net
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.3
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD:-changeme}
+      - SERVER_HOST=0.0.0.0
+    volumes:
+      - ./kibana/config:/usr/share/kibana/config
+    ports:
+      - "5601:5601"
+    networks:
+      - blue_team_net
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.3
+    container_name: logstash
+    depends_on:
+      - elasticsearch
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+      - LOGSTASH_INTERNAL_PASSWORD=${LOGSTASH_INTERNAL_PASSWORD:-changeme}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./wazuh/data:/var/ossec/data
+      - ./suricata/logs:/var/log/suricata:ro  # Compartir logs de Suricata
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    networks:
+      - blue_team_net
+    restart: unless-stopped
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    command: ["-c", "/etc/suricata/suricata.yaml", "-i", "enp0s3", "-vvv"]
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./suricata/logs:/var/log/suricata
+      - ./suricata/config:/etc/suricata
+      - ./suricata/rules:/usr/share/suricata/rules
+
+  wazuh:
+    image: wazuh/wazuh-manager:4.12.0
+    container_name: wazuh
+    depends_on:
+      - elasticsearch
+    environment:
+      - INDEXER_URL=http://elasticsearch:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+      - FILEBEAT_CUSTOM_CONF=/usr/share/filebeat/filebeat.yml
+      - DISABLE_WAZUH_FILEBEAT=false
+    volumes:
+      - ./wazuh/data:/var/ossec/data
+      - ./suricata/logs:/var/log/suricata  # Compartir logs de Suricata
+      - ./wazuh/config/:/var/ossec/etc/shared
+      - ./wazuh/filebeat/filebeat_custom.yml:/usr/share/filebeat/filebeat_custom.yml
+      - ./wazuh/config/ossec.conf:/var/ossec/etc/ossec.conf
+      - /var/lib/filebeat/registry:/usr/share/filebeat/data/registry
+      - filebeat-data:/usr/share/filebeat/data
+    ports:
+      - "1514:1514"
+      - "1515:1515"
+      - "1516:1516"
+    networks:
+      - blue_team_net
+    restart: unless-stopped
+
+networks:
+  blue_team_net:
+    driver: bridge
+    
+volumes:
+  filebeat-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
