@@ -9,9 +9,9 @@ En este sistema, Suricata funciona como un IDS que monitorea el tráfico de la r
 
 | Servicio   | Descripción |
 |------------|-------------|
-| **Suricata** | Motor NIDS/IPS de alto rendimiento que analiza el tráfico de red en tiempo real. |
-| **Wazuh Manager** | Monitorea logs, archivos, integridad y amenazas de endpoints. |
-| **Filebeat** | Envía logs desde Suricata/Wazuh a Logstash. |
+| **Suricata** | Motor IDS de alto rendimiento que analiza el tráfico de red en tiempo real. |
+| **Wazuh Manager** | Monitorea logs de Suricata aplicando sus propias reglas |
+| **Filebeat** | Envía logs desde Wazuh a Logstash. |
 | **Logstash** | Procesa, filtra y enruta los logs hacia Elasticsearch. |
 | **Elasticsearch** | Motor de búsqueda y almacenamiento de logs. |
 | **Kibana** | Dashboard web para visualizar los logs y eventos de seguridad. |
